@@ -1,9 +1,6 @@
+"use client";
 import OrderManagement from '@/components/OrderManagement';
 
-export default function Home() {
-  return (
-    <main>
-      <OrderManagement />
-    </main>
-  );
+export default function Page() {
+  return <OrderManagement />;
 }

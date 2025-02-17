@@ -12,16 +12,36 @@ import {
   serverTimestamp,
   deleteDoc
 } from 'firebase/firestore';
-import html2pdf from 'html2pdf.js';
-import { jsPDF } from 'jspdf';
 
+// נמחקו שורות הייבוא של הספריות הללו:
+// import html2pdf from 'html2pdf.js';
+// import { jsPDF } from 'jspdf';
+
+// נוסיף useState עבור הספריות
 const OrderManagement = () => {
+  const [html2pdfLib, setHtml2pdfLib] = useState(null);
+  const [jsPDFLib, setJsPDFLib] = useState(null);
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState('');
   const [deliveryDays, setDeliveryDays] = useState({});
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [productsMap, setProductsMap] = useState({});
+
+  // בתוך useEffect נטען את הספריות באופן דינמי בצד הלקוח
+  useEffect(() => {
+    const loadLibraries = async () => {
+      if (typeof window !== 'undefined') {
+        const html2pdfModule = await import('html2pdf.js');
+        const jsPDFModule = await import('jspdf');
+        setHtml2pdfLib(() => html2pdfModule.default);
+        setJsPDFLib(() => jsPDFModule.jsPDF);
+      }
+    };
+
+    loadLibraries();
+  }, []);
 
   // פונקציית עזר ליצירת HTML של טבלה
   const createTableHtml = (headers, data) => {
@@ -308,6 +328,8 @@ const OrderManagement = () => {
 
   // ייצוא דוח מרוכז ל-PDF באמצעות html2pdf
   const exportSummaryToPDF = () => {
+    if (!html2pdfLib) return; // וודא שהספרייה נטענה
+
     const tableData = selectedOrderDetails.products.map((product) => [
       product.quantity.toString(),
       product.name
@@ -338,13 +360,15 @@ const OrderManagement = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().from(element).set(options).save().then(() => {
+    html2pdfLib().from(element).set(options).save().then(() => {
       document.body.removeChild(element);
     });
   };
 
   // ייצוא דוח מפורט ל-PDF באמצעות html2pdf
   const exportDetailedToPDF = () => {
+    if (!html2pdfLib) return; // וודא שהספרייה נטענה
+
     const content = `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; direction: rtl;">
         <h1 style="text-align: right; color: #333; margin-bottom: 20px;">
@@ -391,7 +415,7 @@ const OrderManagement = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().from(element).set(options).save().then(() => {
+    html2pdfLib().from(element).set(options).save().then(() => {
       document.body.removeChild(element);
     });
   };
@@ -424,7 +448,6 @@ const OrderManagement = () => {
       }
     }
 
-    // לפני החזרת הערך, נוודא שיש לנו בדיוק 2 ספרות אחרי הנקודה
     console.log('Total before rounding:', roundedTotal);
     console.log('Fractional part:', fractionalPart);
     console.log('Rounding amount:', roundingAmount);
@@ -504,9 +527,7 @@ const OrderManagement = () => {
       const data = await response.json();
       
       if (data.Success) {
-        // עדכון הממשק לאחר יצירת החשבונית
         alert('החשבונית נוצרה בהצלחה! מספר חשבונית: ' + data.ReturnValue.docNumber);
-        // רענון הנתונים
         await fetchOrders();
       } else {
         throw new Error(data.ErrorMessage || 'שגיאה ביצירת החשבונית');
@@ -517,8 +538,11 @@ const OrderManagement = () => {
     }
   };
 
-  // יצירת מופע jsPDF (לפי התיקונים)
-const pdfDoc = new jsPDF();
+  // יצירת מופע jsPDF (לבדיקה, אם הספרייה נטענה)
+  let pdfDoc;
+  if (jsPDFLib) {
+    pdfDoc = new jsPDFLib();
+  }
 
   return (
     <div className="container mx-auto p-4" dir="rtl">

@@ -13,11 +13,6 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 
-// נמחקו שורות הייבוא של הספריות הללו:
-// import html2pdf from 'html2pdf.js';
-// import { jsPDF } from 'jspdf';
-
-// נוסיף useState עבור הספריות
 const OrderManagement = () => {
   const [html2pdfLib, setHtml2pdfLib] = useState(null);
   const [jsPDFLib, setJsPDFLib] = useState(null);
@@ -29,7 +24,7 @@ const OrderManagement = () => {
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [productsMap, setProductsMap] = useState({});
 
-  // בתוך useEffect נטען את הספריות באופן דינמי בצד הלקוח
+  // טעינת הספריות html2pdf ו-jsPDF בצורה דינמית בצד הלקוח
   useEffect(() => {
     const loadLibraries = async () => {
       if (typeof window !== 'undefined') {
@@ -420,47 +415,9 @@ const OrderManagement = () => {
     });
   };
 
-  // פונקציה לחישוב סכום העיגול הנדרש
-  const calculateRoundingAmount = (items, vatPercentage) => {
-    // חישוב סכום כולל מע"מ
-    const totalBeforeRounding = items.reduce((sum, item) => {
-      const itemTotal = item.Price * item.Quantity;
-      const itemWithVat = itemTotal * (1 + vatPercentage / 100);
-      return sum + itemWithVat;
-    }, 0);
-
-    // המרה למספר עם 2 ספרות אחרי הנקודה
-    const roundedTotal = Math.round(totalBeforeRounding * 100) / 100;
-    
-    // חישוב החלק השברי (האגורות)
-    const fractionalPart = roundedTotal % 1;
-    
-    let roundingAmount = 0;
-    
-    // אם יש אגורות, נחשב את סכום העיגול
-    if (fractionalPart !== 0) {
-      if (fractionalPart >= 0.5) {
-        // עיגול כלפי מעלה - נוסיף את ההפרש עד השקל הבא
-        roundingAmount = +(1 - fractionalPart).toFixed(2);
-      } else {
-        // עיגול כלפי מעלה גם כאן - נוסיף את ההפרש עד השקל הבא
-        roundingAmount = +(1 - fractionalPart).toFixed(2);
-      }
-    }
-
-    console.log('Total before rounding:', roundedTotal);
-    console.log('Fractional part:', fractionalPart);
-    console.log('Rounding amount:', roundingAmount);
-    
-    return roundingAmount;
-  };
-
-  // פונקציה להמרת הזמנה לחשבונית
+  // המרה של הזמנה לחשבונית עם העדכון החדש (עיגול אוטומטי)
   const convertToInvoice = async (order) => {
     try {
-      // חישוב סכום העיגול
-      const roundingAmount = calculateRoundingAmount(order.items, 18);
-
       // קודם נחפש את פרטי הלקוח המלאים
       const customerResponse = await fetch('https://api.yeshinvoice.co.il/api/v1/getAllCustomers', {
         method: 'POST',
@@ -501,7 +458,8 @@ const OrderManagement = () => {
           CurrencyID: 2, // שקל
           LangID: 359, // עברית
           vatPercentage: 18, // אחוז מע"מ
-          roundPrice: roundingAmount, // סכום העיגול המחושב
+          RoundPriceAuto: true, // הוספת פרמטר העיגול האוטומטי
+          roundPrice: 0, // איפוס העיגול הידני
           DateCreated: new Date().toISOString().split('T')[0],
           MaxDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
           statusID: 1,
